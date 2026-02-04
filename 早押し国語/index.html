@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>早押し国語 - 中学受験対策</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div id="app">
+  <div class="background-shapes">
+    <div class="shape shape-1"></div>
+    <div class="shape shape-2"></div>
+    <div class="shape shape-3"></div>
+  </div>
+
+  <header class="app-header">
+    <h1><span class="accent">早押し</span>国語</h1>
+    <button id="nav-history" class="icon-btn" aria-label="学習記録">
+      <!-- SVG Icon for History -->
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l4 2"/></svg>
+    </button>
+  </header>
+
+  <main>
+    <!-- HOME SCREEN -->
+    <section id="screen-home" class="screen active">
+      <div class="hero">
+        <h2>目指せ<br>語彙力マスター</h2>
+        <p class="subtitle">四字熟語・ことわざ・故事成語</p>
+      </div>
+      
+      <div class="menu-card">
+        <label for="difficulty-select">難易度</label>
+        <select id="difficulty-select">
+          <option value="normal">ふつう (4択)</option>
+          <!-- Future: <option value="hard">むずかしい (記述)</option> -->
+        </select>
+        
+        <div class="game-modes">
+          <button class="btn btn-primary btn-lg" id="start-game-btn">
+            スタート
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- GAME SCREEN -->
+    <section id="screen-game" class="screen hidden">
+      <div class="hud">
+        <div class="score-board">
+          <span class="label">SCORE</span>
+          <span class="value" id="current-score">0</span>
+        </div>
+        <div class="timer-container">
+          <div class="timer-bar" id="timer-bar"></div>
+        </div>
+      </div>
+
+      <div class="question-card" id="question-card">
+        <div class="question-type" id="question-type">四字熟語</div>
+        <div class="question-text" id="question-text">
+          <!-- Main text (Word or Meaning) will appear here -->
+        </div>
+        <div class="question-sub" id="question-sub">
+          <!-- Reading or hint -->
+        </div>
+      </div>
+
+      <div class="options-grid" id="options-grid">
+        <!-- 4 Buttons will be injected here -->
+      </div>
+    </section>
+
+    <!-- RESULT SCREEN -->
+    <section id="screen-result" class="screen hidden">
+      <div class="result-card">
+        <h2>結果発表</h2>
+        <div class="final-score">
+          <span class="label">獲得スコア</span>
+          <span class="score-display" id="result-score">1200</span>
+        </div>
+        <div class="result-stats">
+          <div class="stat">
+            <span class="stat-label">正解数</span>
+            <span class="stat-value" id="result-correct">8</span> / <span id="result-total">10</span>
+          </div>
+          <div class="stat">
+            <span class="stat-label">タイム</span>
+            <span class="stat-value" id="result-time">45s</span>
+          </div>
+        </div>
+        
+        <div class="actions">
+          <button class="btn btn-primary" id="restart-btn">もう一度</button>
+          <button class="btn btn-secondary" id="home-btn">ホームへ</button>
+        </div>
+
+        <div class="save-status" id="save-status">
+          記録を保存中...
+        </div>
+      </div>
+    </section>
+
+    <!-- HISTORY SCREEN -->
+    <section id="screen-history" class="screen hidden">
+      <h2 class="section-title">学習記録</h2>
+      <div class="history-list" id="history-list">
+        <!-- History items -->
+        <div class="empty-state">読み込み中...</div>
+      </div>
+      <button class="btn btn-secondary" id="history-back-btn">戻る</button>
+    </section>
+
+  </main>
+</div>
+
+<!-- Firebase SDKs (Modular) -->
+<!-- We use a helper script to load functionality since we don't have a bundler for env vars easily, 
+     but we will structure app.js to handle this. -->
+<script type="module" src="js/app.js"></script>
+</body>
+</html>
