@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StudyApps Portal</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;700;900&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --primary: #4F46E5;
+            --primary-dark: #4338ca;
+            --accent: #F59E0B;
+            --bg-gradient: linear-gradient(135deg, #E0E7FF 0%, #C7D2FE 100%);
+            --surface: rgba(255, 255, 255, 0.9);
+            --text-main: #1F2937;
+        }
+
+        body {
+            font-family: 'Zen Maru Gothic', sans-serif;
+            background: var(--bg-gradient);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 400px;
+            background: var(--surface);
+            padding: 40px;
+            border-radius: 24px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        h1 {
+            color: var(--primary-dark);
+            margin-bottom: 30px;
+            font-size: 2rem;
+        }
+
+        input {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 15px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 1rem;
+            box-sizing: border-box;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            margin-bottom: 10px;
+            transition: transform 0.1s;
+        }
+
+        .btn:active {
+            transform: scale(0.98);
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-secondary {
+            background: white;
+            border: 2px solid #ddd;
+            color: var(--text-main);
+        }
+
+        .divider {
+            margin: 20px 0;
+            color: #888;
+            font-size: 0.9rem;
+        }
+
+        .error-msg {
+            color: #EF4444;
+            margin-bottom: 15px;
+            font-size: 0.9rem;
+            display: none;
+        }
+
+        #user-panel {
+            display: none;
+        }
+
+        .app-link {
+            display: block;
+            background: white;
+            padding: 20px;
+            border-radius: 16px;
+            text-decoration: none;
+            color: var(--text-main);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            margin-top: 20px;
+            transition: transform 0.2s;
+        }
+
+        .app-link:hover {
+            transform: translateY(-3px);
+        }
+
+        .app-icon {
+            font-size: 2rem;
+            display: block;
+            margin-bottom: 10px;
+        }
+
+        .app-title {
+            font-weight: bold;
+            font-size: 1.2rem;
+            display: block;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <div id="auth-panel">
+            <!-- Login View -->
+            <div id="view-login">
+                <h1>StudyApps<br>Login</h1>
+                <div id="error-msg-login" class="error-msg"></div>
+
+                <input type="text" id="login-id" placeholder="ユーザーID (英数字)" autocomplete="username">
+                <input type="password" id="login-pass" placeholder="パスワード" autocomplete="current-password">
+
+                <button class="btn btn-primary" id="btn-do-login">ログイン</button>
+                <div class="divider">
+                    <span id="to-signup"
+                        style="color: var(--primary); cursor: pointer; text-decoration: underline;">新規登録はこちら</span>
+                </div>
+            </div>
+
+            <!-- Signup View -->
+            <div id="view-signup" style="display: none;">
+                <h1>新規登録</h1>
+                <p style="font-size: 0.9rem; color: #666; margin-bottom: 20px;">
+                    好きなIDとパスワードを決めてください。<br>
+                    (メールアドレスは不要です)
+                </p>
+                <div id="error-msg-signup" class="error-msg"></div>
+
+                <input type="text" id="signup-id" placeholder="ユーザーID (英数字)" autocomplete="username">
+                <input type="password" id="signup-pass" placeholder="パスワード (6文字以上)" autocomplete="new-password">
+
+                <button class="btn btn-secondary" id="btn-do-signup">アカウント作成</button>
+
+                <div class="divider">
+                    <span id="to-login"
+                        style="color: var(--primary); cursor: pointer; text-decoration: underline;">ログイン画面に戻る</span>
+                </div>
+            </div>
+
+            <!-- 
+            <div class="divider">
+                <a href="早押し国語/" style="font-size: 0.8rem; color: #666;">ログインせずにアプリへ</a>
+            </div>
+            -->
+        </div>
+
+        <div id="user-panel">
+            <h1>Welcome!</h1>
+            <p id="user-display-id" style="margin-bottom: 30px; color: #555; font-size: 1.2rem; font-weight: bold;"></p>
+
+            <h3>保有アプリ</h3>
+            <a href="早押し国語/" class="app-link">
+                <span class="app-icon">🎴</span>
+                <span class="app-title">早押し国語</span>
+                <span style="font-size:0.8rem; color:#888;">漢字・四字熟語マスター</span>
+            </a>
+
+            <button class="btn btn-secondary" id="btn-logout" style="margin-top: 40px;">ログアウト</button>
+        </div>
+    </div>
+
+    <script type="module">
+        import { firebaseConfig } from './js/config.js';
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const DUMMY_DOMAIN = "@studyapps.local";
+
+        const ui = {
+            auth: document.getElementById('auth-panel'),
+            user: document.getElementById('user-panel'),
+            views: {
+                login: document.getElementById('view-login'),
+                signup: document.getElementById('view-signup')
+            },
+            userIdDisplay: document.getElementById('user-display-id')
+        };
+
+        // Screen Toggles
+        document.getElementById('to-signup').onclick = () => switchView('signup');
+        document.getElementById('to-login').onclick = () => switchView('login');
+
+        function switchView(viewName) {
+            ui.views.login.style.display = viewName === 'login' ? 'block' : 'none';
+            ui.views.signup.style.display = viewName === 'signup' ? 'block' : 'none';
+            // Clear errors
+            document.getElementById('error-msg-login').style.display = 'none';
+            document.getElementById('error-msg-signup').style.display = 'none';
+
+            // Clear inputs
+            if (viewName === 'login') {
+                document.getElementById('login-id').value = '';
+                document.getElementById('login-pass').value = '';
+            } else {
+                document.getElementById('signup-id').value = '';
+                document.getElementById('signup-pass').value = '';
+            }
+        }
+
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                ui.auth.style.display = 'none';
+                ui.user.style.display = 'block';
+                // Remove dummy domain for display
+                const rawId = user.email ? user.email.replace(DUMMY_DOMAIN, "") : "Guest";
+                ui.userIdDisplay.textContent = rawId + " さん";
+            } else {
+                ui.auth.style.display = 'block';
+                ui.user.style.display = 'none';
+                switchView('login');
+            }
+        });
+
+        // Login Logic
+        document.getElementById('btn-do-login').addEventListener('click', async () => {
+            const id = document.getElementById('login-id').value.trim();
+            const pass = document.getElementById('login-pass').value;
+            if (!id || !pass) return showError('login', "IDとパスワードを入力してください");
+
+            try {
+                const email = id + DUMMY_DOMAIN;
+                await signInWithEmailAndPassword(auth, email, pass);
+            } catch (e) {
+                showError('login', mapError(e.code));
+            }
+        });
+
+        // Signup Logic
+        document.getElementById('btn-do-signup').addEventListener('click', async () => {
+            const id = document.getElementById('signup-id').value.trim();
+            const pass = document.getElementById('signup-pass').value;
+
+            if (!id) return showError('signup', "ユーザーIDを入力してください");
+            // Check for valid characters (alphanumeric only recommended to avoid email parsing issues)
+            if (!/^[a-zA-Z0-9]+$/.test(id)) return showError('signup', "IDは半角英数字のみ使用できます");
+            if (!pass) return showError('signup', "パスワードを入力してください");
+
+            try {
+                const email = id + DUMMY_DOMAIN;
+                await createUserWithEmailAndPassword(auth, email, pass);
+            } catch (e) {
+                showError('signup', mapError(e.code));
+            }
+        });
+
+        document.getElementById('btn-logout').addEventListener('click', () => {
+            signOut(auth);
+        });
+
+        function showError(context, msg) {
+            const el = document.getElementById(`error-msg-${context}`);
+            el.textContent = msg;
+            el.style.display = 'block';
+        }
+
+        function mapError(code) {
+            switch (code) {
+                case 'auth/invalid-email': return 'IDに使用できない文字が含まれています';
+                case 'auth/user-not-found': return 'ユーザーが見つかりません';
+                case 'auth/wrong-password': return 'パスワードが間違っています (IDは合っていますか？)';
+                case 'auth/email-already-in-use': return 'このIDは既に使用されています';
+                case 'auth/weak-password': return 'パスワードは6文字以上で設定してください';
+                case 'auth/missing-email': return 'IDを入力してください';
+                case 'auth/operation-not-allowed': return '管理者設定エラー: Firebaseコンソールでメール/パスワード認証を有効にしてください';
+                default: return 'エラーが発生しました: ' + code;
+            }
+        }
+    </script>
+
+</body>
+
+</html>

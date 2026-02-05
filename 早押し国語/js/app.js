@@ -33,13 +33,29 @@ class StorageService {
             this.query = query;
             this.limit = limit;
 
-            // 認証の初期化と匿名ログイン
+            // 認証の初期化
             this.auth = getAuth(this.app);
-            try {
-                await signInAnonymously(this.auth);
-                console.log("Firebase signed in anonymously");
-            } catch (authErr) {
-                console.warn("Anonymous auth failed (check Firebase Console):", authErr);
+
+            // Wait briefly for auth state to resolve
+            await new Promise(resolve => {
+                const unsubscribe = this.auth.onAuthStateChanged(user => {
+                    unsubscribe();
+                    resolve(user);
+                });
+            });
+
+            if (this.auth.currentUser) {
+                console.log("Logged in as:", this.auth.currentUser.uid);
+            } else {
+                console.log("No user signed in. Redirecting to login...");
+                // Allow a small grace period or check if we are in a protected view
+                // For now, redirect to portal if not logged in
+                // Note: Local development might need handling if running pure file
+                if (window.location.hostname !== "localhost" && !window.location.href.includes("127.0.0.1")) {
+                    window.location.href = "../";
+                } else {
+                    console.warn("Local env: Skipping redirect. Auth expected.");
+                }
             }
 
             this.useCloud = true;
@@ -55,29 +71,22 @@ class StorageService {
             score: score,
             correct: correctCount,
             total: totalQuestions,
-            details: details // Array of { questionId, isCorrect, ... }
+            details: details,
+            timestamp: new Date()
         };
 
-        if (this.useCloud && this.db) {
+        if (this.useCloud && this.db && this.auth && this.auth.currentUser) {
             try {
-                // 認証チェックと再試行
-                if (this.auth && !this.auth.currentUser) {
-                    console.log("Not signed in, attempting anonymous sign in...");
-                    await signInAnonymously(this.auth);
-                }
+                const uid = this.auth.currentUser.uid;
+                // Save to users/{uid}/history
+                const savePromise = this.addDoc(this.collection(this.db, "users", uid, "history"), record);
 
-                // 5秒でタイムアウトするように設定
-                const savePromise = this.addDoc(this.collection(this.db, this.collectionName), {
-                    ...record,
-                    timestamp: new Date()
-                });
                 const timeoutPromise = new Promise((_, reject) =>
                     setTimeout(() => reject(new Error("Cloud save timed out")), 5000)
                 );
 
                 await Promise.race([savePromise, timeoutPromise]);
-                // 結果詳細（各問題の正誤）の保存（別コレクションまたはサブコレクション）
-                // 簡略化のため、問題ごとの集計用コレクション 'word_stats' を更新
+
                 if (record.details) {
                     await this.updateWordStats(record.details);
                 }
@@ -85,7 +94,6 @@ class StorageService {
                 return { success: true, method: 'cloud' };
             } catch (e) {
                 console.error("Cloud save failed", e);
-                // 失敗時はローカル保存へフォールバック。エラー情報を保持
                 var cloudError = e;
             }
         }
@@ -98,10 +106,11 @@ class StorageService {
     }
 
     async getHistory() {
-        if (this.useCloud && this.db) {
+        if (this.useCloud && this.db && this.auth && this.auth.currentUser) {
             try {
+                const uid = this.auth.currentUser.uid;
                 const q = this.query(
-                    this.collection(this.db, this.collectionName),
+                    this.collection(this.db, "users", uid, "history"),
                     this.orderBy("timestamp", "desc"),
                     this.limit(20)
                 );
@@ -121,16 +130,15 @@ class StorageService {
     }
 
     async updateWordStats(details) {
-        if (!this.useCloud || !this.db) return;
+        if (!this.useCloud || !this.db || !this.auth || !this.auth.currentUser) return;
+        const uid = this.auth.currentUser.uid;
 
-        // Note: Real scalable apps use Cloud Functions / Aggregations. 
-        // Here we do client-side increments (beware of race conditions in high concurrency)
-        const { doc, getDoc, setDoc, updateDoc, increment } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
+        const { doc, setDoc, increment } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
 
         for (const d of details) {
-            const ref = doc(this.db, "word_stats", String(d.questionId));
+            // users/{uid}/word_stats/{questionId}
+            const ref = doc(this.db, "users", uid, "word_stats", String(d.questionId));
 
-            // Use setDoc with merge: true to handle both create and update without errors
             await setDoc(ref, {
                 total: increment(1),
                 correct: increment(d.isCorrect ? 1 : 0),
@@ -144,9 +152,10 @@ class StorageService {
     }
 
     async getWordStats() {
-        if (this.useCloud && this.db) {
+        if (this.useCloud && this.db && this.auth && this.auth.currentUser) {
             try {
-                const snapshot = await this.getDocs(this.collection(this.db, "word_stats"));
+                const uid = this.auth.currentUser.uid;
+                const snapshot = await this.getDocs(this.collection(this.db, "users", uid, "word_stats"));
                 return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             } catch (e) {
                 console.warn("Stats fetch failed", e);
@@ -155,20 +164,125 @@ class StorageService {
         return [];
     }
 
+    async getUserStats() {
+        if (this.useCloud && this.db && this.auth && this.auth.currentUser) {
+            try {
+                const uid = this.auth.currentUser.uid;
+                const { doc, getDoc } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
+                // users/{uid} ドキュメント自体に持たせる
+                const docRef = doc(this.db, "users", uid);
+                const docSnap = await getDoc(docRef);
+
+                if (docSnap.exists()) {
+                    return docSnap.data();
+                }
+            } catch (e) {
+                console.warn("UserStats fetch failed", e);
+            }
+        }
+        return JSON.parse(localStorage.getItem('user_stats') || '{"totalScore": 0}');
+    }
+
+    async updateUserStats(scoreToAdd) {
+        let stats = { totalScore: 0 };
+
+        if (this.useCloud && this.db && this.auth && this.auth.currentUser) {
+            try {
+                const { doc, getDoc, setDoc, increment } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
+                const uid = this.auth.currentUser.uid;
+                const docRef = doc(this.db, "users", uid);
+
+                await setDoc(docRef, {
+                    totalScore: increment(scoreToAdd),
+                    lastPlayed: new Date()
+                }, { merge: true });
+
+                const updatedSnap = await getDoc(docRef);
+                return updatedSnap.data();
+            } catch (e) {
+                console.error("Cloud stats update failed", e);
+            }
+        }
+
+        // Local fallback
+        stats = JSON.parse(localStorage.getItem('user_stats') || '{"totalScore": 0}');
+        stats.totalScore += scoreToAdd;
+        stats.lastPlayed = new Date().toISOString();
+        localStorage.setItem('user_stats', JSON.stringify(stats));
+        return stats;
+    }
+
     async fetchQuestions() {
         if (this.useCloud && this.db) {
             try {
                 const snapshot = await this.getDocs(this.collection(this.db, "questions"));
                 if (!snapshot.empty) {
                     const questions = snapshot.docs.map(doc => doc.data());
-                    console.log(`Firebaseから${questions.length}件の問題を読み込みました`);
                     return questions;
                 }
             } catch (e) {
                 console.warn("Questions fetch failed (using local):", e);
             }
         }
-        return null; // Fallback to local
+        return null;
+    }
+}
+
+// --- REWARD SYSTEM ---
+const REWARDS = [
+    { score: 5000, id: 'cube', name: 'ブロンズ・キューブ', icon: '🟫', shapeClass: 'shape-cube' },
+    { score: 15000, id: 'hex', name: 'シルバー・ヘキサ', icon: '⚪', shapeClass: 'shape-hex' },
+    { score: 30000, id: 'star', name: 'ゴールド・スター', icon: '⭐', shapeClass: 'shape-star' },
+    { score: 50000, id: 'heart', name: 'フローティング・ハート', icon: '💖', shapeClass: 'shape-heart' }
+];
+
+class DecorationManager {
+    constructor() {
+        this.container = document.querySelector('.background-shapes');
+    }
+
+    applyDecorations(totalScore) {
+        // Clear existing dynamic shapes (keep default 3 shapes if possible, or clear all and re-add)
+        // Default shapes are hardcoded in HTML. Let's append new ones or ensure we don't duplicate.
+        // Simple strategy: Remove all elements with 'dynamic-shape' class
+        const currentDynamic = document.querySelectorAll('.dynamic-shape');
+        currentDynamic.forEach(el => el.remove());
+
+        REWARDS.forEach(reward => {
+            if (totalScore >= reward.score) {
+                this.addShape(reward.shapeClass);
+            }
+        });
+    }
+
+    addShape(className) {
+        const shape = document.createElement('div');
+        shape.className = `shape ${className} dynamic-shape`;
+        this.container.appendChild(shape);
+    }
+
+    checkUnlock(prevScore, newScore) {
+        const newUnlocks = REWARDS.filter(r => newScore >= r.score && prevScore < r.score);
+        if (newUnlocks.length > 0) {
+            // Show latest unlock
+            this.showUnlockModal(newUnlocks[newUnlocks.length - 1]);
+        }
+    }
+
+    showUnlockModal(reward) {
+        const modal = document.createElement('div');
+        modal.className = 'unlock-modal';
+        modal.innerHTML = `
+            <div class="unlock-content">
+                <div class="unlock-icon">${reward.icon}</div>
+                <h2>New Item Unlocked!</h2>
+                <p style="font-size: 1.2rem; margin: 10px 0; font-weight:bold;">${reward.name}</p>
+                <p>総合スコアが ${reward.score} 点を超えました！</p>
+                <p>背景が豪華になりました。</p>
+                <button class="btn btn-primary" style="margin-top: 20px;" onclick="this.closest('.unlock-modal').remove()">OK</button>
+            </div>
+        `;
+        document.body.appendChild(modal);
     }
 }
 
@@ -177,9 +291,10 @@ const QUESTIONS_PER_GAME = 10;
 const TIME_PER_QUESTION = 10; // seconds
 
 class Game {
-    constructor(ui, storage) {
+    constructor(ui, storage, decorationManager) {
         this.ui = ui;
         this.storage = storage;
+        this.decorationManager = decorationManager;
         this.score = 0;
         this.currentQuestionIndex = 0;
         this.questions = [];
@@ -297,6 +412,18 @@ class Game {
         this.ui.renderResult(this.score, correctCount, QUESTIONS_PER_GAME);
 
         const result = await this.storage.saveRecord(this.score, QUESTIONS_PER_GAME, correctCount, this.gameLogs);
+
+        // Update User Stats (Total Score)
+        const currentStats = await this.storage.getUserStats();
+        const prevTotal = currentStats.totalScore || 0;
+        const newStats = await this.storage.updateUserStats(this.score);
+
+        // Decorate background based on new total
+        this.decorationManager.applyDecorations(newStats.totalScore);
+
+        // Check for unlocks
+        this.decorationManager.checkUnlock(prevTotal, newStats.totalScore);
+
         if (result.success) {
             this.ui.setSaveStatus("保存完了 (クラウド)");
         } else {
@@ -479,8 +606,39 @@ class UI {
 
 // --- INITIALIZATION ---
 const storage = new StorageService();
+const decorationManager = new DecorationManager();
 const ui = new UI();
-const game = new Game(ui, storage);
+const game = new Game(ui, storage, decorationManager);
+
+// Initial Load of Decorations and UI Info
+storage.init().then(async () => {
+    // Wait for auth
+    setTimeout(async () => {
+        // User Info Update
+        if (storage.auth && storage.auth.currentUser) {
+            const email = storage.auth.currentUser.email || "";
+            const displayId = email.split('@')[0] || "Guest";
+            document.getElementById('header-user-id').textContent = displayId;
+            document.getElementById('user-info-bar').style.display = 'flex';
+        }
+
+        const stats = await storage.getUserStats();
+        decorationManager.applyDecorations(stats.totalScore || 0);
+
+        // Calculate and Show current Rank Name in Header
+        let currentRankName = "";
+        for (let i = REWARDS.length - 1; i >= 0; i--) {
+            if ((stats.totalScore || 0) >= REWARDS[i].score) {
+                currentRankName = REWARDS[i].icon + " " + REWARDS[i].name;
+                break;
+            }
+        }
+        if (!currentRankName) currentRankName = "🐣 見習い";
+        document.getElementById('header-user-rank').textContent = currentRankName;
+
+    }, 1000);
+});
+
 window.game = game; // Expose for callbacks
 
 // Event Listeners
@@ -504,14 +662,81 @@ document.getElementById('home-btn').addEventListener('click', () => {
     ui.showScreen('home');
 });
 
+
 document.getElementById('nav-history').addEventListener('click', async () => {
     ui.showScreen('history');
-    const list = document.getElementById('history-list');
-    list.innerHTML = '<div class="empty-state">読み込み中...</div>';
+    const container = document.getElementById('screen-history');
+    // Ensure status container exists
+    let statusContainer = document.getElementById('history-status');
+    let list = document.getElementById('history-list');
 
-    const records = await storage.getHistory();
+    if (!statusContainer) {
+        statusContainer = document.createElement('div');
+        statusContainer.id = 'history-status';
+        statusContainer.className = 'status-card';
+        // Insert before the list
+        container.insertBefore(statusContainer, list);
+    }
+
+    statusContainer.innerHTML = '<div style="text-align:center;">データ読み込み中...</div>';
     list.innerHTML = '';
 
+    const [records, stats] = await Promise.all([
+        storage.getHistory(),
+        storage.getUserStats()
+    ]);
+
+    // --- Status & Rank Calculation ---
+    const totalScore = stats.totalScore || 0;
+
+    let currentRank = { name: '見習い', icon: '🐣', score: 0 };
+    let nextReward = REWARDS[0];
+
+    for (let i = 0; i < REWARDS.length; i++) {
+        if (totalScore >= REWARDS[i].score) {
+            currentRank = REWARDS[i];
+            nextReward = REWARDS[i + 1] || null;
+        } else {
+            nextReward = REWARDS[i];
+            break;
+        }
+    }
+
+    let progressHTML = '';
+    if (nextReward) {
+        // Progress base is current rank's threshold (or 0)
+        // Progress target is next rank
+        const base = currentRank.score;
+        const target = nextReward.score;
+        const progress = Math.min(100, Math.max(0, ((totalScore - base) / (target - base)) * 100));
+
+        progressHTML = `
+            <div class="next-goal">
+                <span class="goal-label">次のランク: ${nextReward.name}まで</span>
+                <span class="goal-value">${(target - totalScore).toLocaleString()} 点</span>
+            </div>
+            <div class="progress-track">
+                <div class="progress-fill" style="width: ${progress}%"></div>
+            </div>
+            <div class="progress-text">あと ${target - totalScore} 点で ${nextReward.icon} ゲット！</div>
+        `;
+    } else {
+        progressHTML = `<div class="next-goal" style="text-align:center; color:var(--accent);">🏆 最高ランク到達！ 🏆</div>`;
+    }
+
+    statusContainer.innerHTML = `
+        <div class="rank-header">
+            <div class="rank-icon">${currentRank.icon}</div>
+            <div class="rank-details">
+                <div class="rank-label">現在のランク</div>
+                <div class="rank-name">${currentRank.name}</div>
+                <div class="total-score">総合スコア: ${totalScore.toLocaleString()}</div>
+            </div>
+        </div>
+        ${progressHTML}
+    `;
+
+    // --- History List ---
     if (records.length === 0) {
         list.innerHTML = '<div class="empty-state">まだ記録がありません</div>';
         return;
@@ -520,7 +745,7 @@ document.getElementById('nav-history').addEventListener('click', async () => {
     records.forEach(r => {
         const item = document.createElement('div');
         item.className = 'history-item';
-        const dateStr = new Date(r.date).toLocaleDateString() + ' ' + new Date(r.date).toLocaleTimeString();
+        const dateStr = new Date(r.date).toLocaleDateString() + ' ' + new Date(r.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         item.innerHTML = `
             <span class="h-date">${dateStr}</span>
             <span class="h-score">${r.score} 点</span>

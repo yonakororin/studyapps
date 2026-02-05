@@ -136,57 +136,59 @@
 
     <div id="status-bar" style="margin-bottom: 20px; font-weight: bold;">接続確認中...</div>
 
-    <div class="tabs">
-        <div class="tab active" onclick="switchTab('import')">データインポート</div>
-        <div class="tab" onclick="switchTab('manage')">データ管理</div>
-    </div>
+    <div id="admin-content" style="display: none;">
+        <div class="tabs">
+            <div class="tab active" onclick="switchTab('import')">データインポート</div>
+            <div class="tab" onclick="switchTab('manage')">データ管理</div>
+        </div>
 
-    <!-- IMPORTS -->
-    <div id="panel-import" class="panel active">
-        <div class="card">
-            <h2>CSV / JSON 一括インポート</h2>
-            <p>Excel等で作成したデータを貼り付けて一括登録できます。</p>
+        <!-- IMPORTS -->
+        <div id="panel-import" class="panel active">
+            <div class="card">
+                <h2>CSV / JSON 一括インポート</h2>
+                <p>Excel等で作成したデータを貼り付けて一括登録できます。</p>
 
-            <div class="format-hint">
-                <strong>CSVフォーマット (ヘッダーなし):</strong><br>
-                タイプ(yojijukugo/kotowaza/kojiseigo), 問題語句, 読み, 正解の意味, ダミー選択肢1, ダミー選択肢2, ダミー選択肢3<br>
-                例:
-                <code>yojijukugo,一石二鳥,いっせきにちょう,一つの行為で二つの利益を得ること,一度にたくさんの失敗をすること,石を投げて鳥を追い払うこと,二つのことを同時に行うのは難しいこと</code>
+                <div class="format-hint">
+                    <strong>CSVフォーマット (ヘッダーなし):</strong><br>
+                    タイプ(yojijukugo/kotowaza/kojiseigo), 問題語句, 読み, 正解の意味, ダミー選択肢1, ダミー選択肢2, ダミー選択肢3<br>
+                    例:
+                    <code>yojijukugo,一石二鳥,いっせきにちょう,一つの行為で二つの利益を得ること,一度にたくさんの失敗をすること,石を投げて鳥を追い払うこと,二つのことを同時に行うのは難しいこと</code>
+                </div>
+
+                <textarea id="import-text" placeholder="ここにCSVまたはJSONを貼り付けてください..."></textarea>
+
+                <div style="margin-top: 10px; display: flex; gap: 10px;">
+                    <button id="parse-csv-btn">CSVとして取り込み</button>
+                    <button id="import-json-btn">JSONとして取り込み</button>
+                </div>
             </div>
 
-            <textarea id="import-text" placeholder="ここにCSVまたはJSONを貼り付けてください..."></textarea>
+            <div class="card">
+                <h2>js/data.js からインポート</h2>
+                <p>プロジェクト内の初期データを再ロードします（IDが重複する場合は上書き）。</p>
+                <button id="load-local-btn">js/data.js をロード</button>
+            </div>
+        </div>
 
-            <div style="margin-top: 10px; display: flex; gap: 10px;">
-                <button id="parse-csv-btn">CSVとして取り込み</button>
-                <button id="import-json-btn">JSONとして取り込み</button>
+        <!-- MANAGE -->
+        <div id="panel-manage" class="panel">
+            <div class="card">
+                <h2>データ全消去</h2>
+                <p>Firestore上の「questions」コレクションを全て削除します。取り扱い注意。</p>
+                <button id="delete-all-btn" class="danger">全データを削除</button>
+            </div>
+
+            <div class="card">
+                <h2>現在のデータ数確認</h2>
+                <button id="check-count-btn">件数を確認</button>
+                <span id="count-display" style="margin-left: 10px; font-weight: bold;"></span>
             </div>
         </div>
 
         <div class="card">
-            <h2>js/data.js からインポート</h2>
-            <p>プロジェクト内の初期データを再ロードします（IDが重複する場合は上書き）。</p>
-            <button id="load-local-btn">js/data.js をロード</button>
+            <h2>実行ログ</h2>
+            <div id="log">...</div>
         </div>
-    </div>
-
-    <!-- MANAGE -->
-    <div id="panel-manage" class="panel">
-        <div class="card">
-            <h2>データ全消去</h2>
-            <p>Firestore上の「questions」コレクションを全て削除します。取り扱い注意。</p>
-            <button id="delete-all-btn" class="danger">全データを削除</button>
-        </div>
-
-        <div class="card">
-            <h2>現在のデータ数確認</h2>
-            <button id="check-count-btn">件数を確認</button>
-            <span id="count-display" style="margin-left: 10px; font-weight: bold;"></span>
-        </div>
-    </div>
-
-    <div class="card">
-        <h2>実行ログ</h2>
-        <div id="log">...</div>
     </div>
 
     <script type="module">
@@ -225,10 +227,28 @@
             const auth = getAuth(app);
 
             try {
-                await signInAnonymously(auth);
-                document.getElementById('status-bar').textContent = "接続完了 (匿名ログイン)";
-                document.getElementById('status-bar').style.color = "green";
-                log("ログイン成功", 'success');
+                // Admin requires explicit login
+                // For simplicity in this tool, we ask for credentials or expect user to be logged in via portal if shared status
+                // Since this is a standalone admin page, let's ask for credentials if no user
+                let user = auth.currentUser;
+                if (!user) {
+                    const email = prompt("管理者用メールアドレス（ID+ドメイン）:");
+                    const pass = prompt("パスワード:");
+                    if (email && pass) {
+                        const { signInWithEmailAndPassword } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js");
+                        await signInWithEmailAndPassword(auth, email, pass);
+                        user = auth.currentUser;
+                    }
+                }
+
+                if (user) {
+                    document.getElementById('status-bar').textContent = `接続完了: ${user.email}`;
+                    document.getElementById('status-bar').style.color = "green";
+                    document.getElementById('admin-content').style.display = 'block';
+                    log("ログイン成功", 'success');
+                } else {
+                    throw new Error("ログインキャンセルまたは失敗");
+                }
             } catch (e) {
                 document.getElementById('status-bar').textContent = "接続失敗";
                 document.getElementById('status-bar').style.color = "red";
