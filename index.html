@@ -11,62 +11,185 @@
         rel="stylesheet">
     <style>
         :root {
-            --primary: #4F46E5;
-            --primary-dark: #4338ca;
-            --accent: #F59E0B;
-            --bg-gradient: linear-gradient(135deg, #E0E7FF 0%, #C7D2FE 100%);
-            --surface: rgba(255, 255, 255, 0.9);
-            --text-main: #1F2937;
+            --primary: #6366f1;
+            /* Indigo */
+            --primary-hover: #4f46e5;
+            --secondary: #f472b6;
+            /* Pink */
+            --bg-gradient: linear-gradient(135deg, #a5b4fc 0%, #c4b5fd 50%, #fbcfe8 100%);
+            --glass-bg: rgba(255, 255, 255, 0.4);
+            --glass-border: rgba(255, 255, 255, 0.6);
+            --shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1);
+            --text-main: #1e293b;
+            --text-light: #64748b;
         }
 
         body {
             font-family: 'Zen Maru Gothic', sans-serif;
-            background: var(--bg-gradient);
-            color: var(--text-main);
+            margin: 0;
             min-height: 100vh;
+            background: var(--bg-gradient);
+            background-attachment: fixed;
+            color: var(--text-main);
             display: flex;
             justify-content: center;
             align-items: center;
-            margin: 0;
-            padding: 20px;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        /* Background Decorations */
+        .bg-blob {
+            position: fixed;
+            border-radius: 50%;
+            filter: blur(60px);
+            z-index: -1;
+            opacity: 0.7;
+            animation: float 15s infinite alternate ease-in-out;
+        }
+
+        .blob-1 {
+            width: 300px;
+            height: 300px;
+            background: #60a5fa;
+            top: -50px;
+            left: -50px;
+        }
+
+        .blob-2 {
+            width: 250px;
+            height: 250px;
+            background: #f472b6;
+            bottom: 0;
+            right: -20px;
+            animation-duration: 20s;
+        }
+
+        .blob-3 {
+            width: 150px;
+            height: 150px;
+            background: #a78bfa;
+            top: 40%;
+            right: 20%;
+            animation-duration: 12s;
+        }
+
+        @keyframes float {
+            from {
+                transform: translate(0, 0);
+            }
+
+            to {
+                transform: translate(30px, 40px);
+            }
         }
 
         .container {
-            width: 100%;
+            width: 90%;
             max-width: 400px;
-            background: var(--surface);
             padding: 40px;
+
+            /* Glassmorphism Effect */
+            background: var(--glass-bg);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            border: 1px solid var(--glass-border);
             border-radius: 24px;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            box-shadow: var(--shadow);
+
             text-align: center;
         }
 
         h1 {
-            color: var(--primary-dark);
+            background: linear-gradient(to right, #4f46e5, #9333ea);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-weight: 900;
+            font-size: 2.2rem;
+            margin-bottom: 5px;
+            letter-spacing: -0.05em;
+        }
+
+        .subtitle {
+            font-size: 0.9rem;
+            color: var(--text-light);
             margin-bottom: 30px;
-            font-size: 2rem;
+            font-weight: bold;
+        }
+
+        /* Toggle Switch */
+        .auth-toggle {
+            display: flex;
+            background: rgba(255, 255, 255, 0.5);
+            padding: 4px;
+            border-radius: 30px;
+            margin-bottom: 25px;
+            position: relative;
+            cursor: pointer;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+
+        .toggle-btn {
+            flex: 1;
+            padding: 10px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 0.9rem;
+            color: var(--text-light);
+            z-index: 2;
+            transition: color 0.3s;
+        }
+
+        .toggle-btn.active {
+            color: #fff;
+        }
+
+        .toggle-bg {
+            position: absolute;
+            top: 4px;
+            left: 4px;
+            width: 50%;
+            /* minus padding */
+            height: calc(100% - 8px);
+            background: var(--primary);
+            border-radius: 25px;
+            transition: left 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+            z-index: 1;
+            box-shadow: 0 4px 6px rgba(99, 102, 241, 0.3);
         }
 
         input {
             width: 100%;
-            padding: 12px;
-            margin-bottom: 15px;
-            border: 1px solid #ddd;
-            border-radius: 8px;
+            padding: 14px 16px;
+            margin-bottom: 12px;
+            background: rgba(255, 255, 255, 0.8);
+            border: 2px solid transparent;
+            border-radius: 12px;
             font-size: 1rem;
+            color: var(--text-main);
             box-sizing: border-box;
+            transition: all 0.2s;
+            font-family: inherit;
+        }
+
+        input:focus {
+            outline: none;
+            background: #fff;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1);
         }
 
         .btn {
             width: 100%;
-            padding: 12px;
+            padding: 14px;
             border: none;
-            border-radius: 8px;
+            border-radius: 12px;
             font-size: 1rem;
             font-weight: bold;
             cursor: pointer;
-            margin-bottom: 10px;
-            transition: transform 0.1s;
+            margin-top: 10px;
+            transition: all 0.2s;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
         }
 
         .btn:active {
@@ -74,121 +197,144 @@
         }
 
         .btn-primary {
-            background: var(--primary);
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%);
             color: white;
+            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+        }
+
+        .btn-primary:hover {
+            box-shadow: 0 6px 15px rgba(79, 70, 229, 0.4);
+            transform: translateY(-1px);
         }
 
         .btn-secondary {
-            background: white;
-            border: 2px solid #ddd;
+            background: rgba(255, 255, 255, 0.8);
             color: var(--text-main);
         }
 
-        .divider {
-            margin: 20px 0;
-            color: #888;
-            font-size: 0.9rem;
+        .btn-secondary:hover {
+            background: #fff;
         }
 
         .error-msg {
-            color: #EF4444;
+            background: #ffe4e6;
+            color: #be123c;
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 0.85rem;
             margin-bottom: 15px;
-            font-size: 0.9rem;
             display: none;
+            border: 1px solid #fecdd3;
         }
 
+        /* User Panel */
         #user-panel {
             display: none;
+            width: 100%;
         }
 
         .app-link {
-            display: block;
-            background: white;
-            padding: 20px;
-            border-radius: 16px;
+            background: rgba(255, 255, 255, 0.7);
+            padding: 24px;
+            border-radius: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
             text-decoration: none;
             color: var(--text-main);
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            transition: all 0.3s;
             margin-top: 20px;
-            transition: transform 0.2s;
+            border: 1px solid rgba(255, 255, 255, 0.2);
         }
 
         .app-link:hover {
-            transform: translateY(-3px);
+            background: rgba(255, 255, 255, 0.95);
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
         }
 
         .app-icon {
-            font-size: 2rem;
-            display: block;
-            margin-bottom: 10px;
-        }
-
-        .app-title {
-            font-weight: bold;
-            font-size: 1.2rem;
-            display: block;
+            font-size: 2.5rem;
+            margin-bottom: 8px;
+            background: #e0e7ff;
+            width: 60px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
         }
     </style>
 </head>
 
 <body>
+    <!-- Background Animations -->
+    <div class="bg-blob blob-1"></div>
+    <div class="bg-blob blob-2"></div>
+    <div class="bg-blob blob-3"></div>
 
     <div class="container">
+
+        <!-- Header Section -->
+        <div>
+            <h1>StudyApps</h1>
+            <p class="subtitle">楽しく学ぶ、未来を創る</p>
+        </div>
+
         <div id="auth-panel">
+            <!-- Custom Toggle -->
+            <div class="auth-toggle" id="auth-toggle">
+                <div class="toggle-bg" id="toggle-bg"></div>
+                <div class="toggle-btn active" id="tab-login">ログイン</div>
+                <div class="toggle-btn" id="tab-signup">新規登録</div>
+            </div>
+
             <!-- Login View -->
             <div id="view-login">
-                <h1>StudyApps<br>Login</h1>
                 <div id="error-msg-login" class="error-msg"></div>
-
                 <input type="text" id="login-id" placeholder="ユーザーID (英数字)" autocomplete="username">
                 <input type="password" id="login-pass" placeholder="パスワード" autocomplete="current-password">
 
-                <button class="btn btn-primary" id="btn-do-login">ログイン</button>
-                <div class="divider">
-                    <span id="to-signup"
-                        style="color: var(--primary); cursor: pointer; text-decoration: underline;">新規登録はこちら</span>
-                </div>
+                <button class="btn btn-primary" id="btn-do-login">スタート</button>
             </div>
 
             <!-- Signup View -->
             <div id="view-signup" style="display: none;">
-                <h1>新規登録</h1>
-                <p style="font-size: 0.9rem; color: #666; margin-bottom: 20px;">
-                    好きなIDとパスワードを決めてください。<br>
-                    (メールアドレスは不要です)
+                <p style="font-size: 0.85rem; color: #666; margin-bottom: 15px;">
+                    メールアドレス不要！<br>IDを決めるだけですぐに始められます。
                 </p>
                 <div id="error-msg-signup" class="error-msg"></div>
 
-                <input type="text" id="signup-id" placeholder="ユーザーID (英数字)" autocomplete="username">
+                <input type="text" id="signup-id" placeholder="好きなID (英数字)" autocomplete="username">
                 <input type="password" id="signup-pass" placeholder="パスワード (6文字以上)" autocomplete="new-password">
 
-                <button class="btn btn-secondary" id="btn-do-signup">アカウント作成</button>
+                <button class="btn btn-primary" id="btn-do-signup"
+                    style="background: linear-gradient(135deg, #f472b6 0%, #db2777 100%);">アカウント作成</button>
+            </div>
+        </div>
 
-                <div class="divider">
-                    <span id="to-login"
-                        style="color: var(--primary); cursor: pointer; text-decoration: underline;">ログイン画面に戻る</span>
+        <!-- User Panel (Logged In) -->
+        <div id="user-panel">
+            <h2 style="margin: 0 0 20px 0; font-size: 1.5rem;">Welcome Back!</h2>
+
+            <div class="profile-card">
+                <div class="avatar-circle" id="user-avatar">U</div>
+                <div class="profile-info">
+                    <div class="profile-name" id="display-name">Guest</div>
+                    <div class="profile-title" id="display-title">見習いチャレンジャー</div>
+                    <div class="profile-stats">累計スコア: <span id="display-score">0</span> pts</div>
                 </div>
             </div>
 
-            <!-- 
-            <div class="divider">
-                <a href="早押し国語/" style="font-size: 0.8rem; color: #666;">ログインせずにアプリへ</a>
-            </div>
-            -->
-        </div>
-
-        <div id="user-panel">
-            <h1>Welcome!</h1>
-            <p id="user-display-id" style="margin-bottom: 30px; color: #555; font-size: 1.2rem; font-weight: bold;"></p>
-
-            <h3>保有アプリ</h3>
+            <h3 style="text-align: left; margin-left: 10px; font-size: 1rem; color: #64748b;">保有アプリ</h3>
             <a href="早押し国語/" class="app-link">
-                <span class="app-icon">🎴</span>
+                <div class="app-icon">🎴</div>
                 <span class="app-title">早押し国語</span>
-                <span style="font-size:0.8rem; color:#888;">漢字・四字熟語マスター</span>
+                <span style="font-size:0.8rem; color:#64748b; margin-top:4px;">漢字・四字熟語・ことわざ</span>
             </a>
 
-            <button class="btn btn-secondary" id="btn-logout" style="margin-top: 40px;">ログアウト</button>
+            <button class="btn btn-secondary" id="btn-logout"
+                style="margin-top: 30px; font-size: 0.9rem;">ログアウト</button>
         </div>
     </div>
 
@@ -196,9 +342,11 @@
         import { firebaseConfig } from './js/config.js';
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
+        const db = getFirestore(app);
         const DUMMY_DOMAIN = "@studyapps.local";
 
         const ui = {
@@ -208,16 +356,36 @@
                 login: document.getElementById('view-login'),
                 signup: document.getElementById('view-signup')
             },
-            userIdDisplay: document.getElementById('user-display-id')
+            // Profile UI Elements
+            displayName: document.getElementById('display-name'),
+            displayTitle: document.getElementById('display-title'),
+            displayScore: document.getElementById('display-score'),
+            avatar: document.getElementById('user-avatar')
         };
 
-        // Screen Toggles
-        document.getElementById('to-signup').onclick = () => switchView('signup');
-        document.getElementById('to-login').onclick = () => switchView('login');
+        // Screen Toggles Logic
+        const tabLogin = document.getElementById('tab-login');
+        const tabSignup = document.getElementById('tab-signup');
+        const toggleBg = document.getElementById('toggle-bg');
+
+        tabLogin.onclick = () => switchView('login');
+        tabSignup.onclick = () => switchView('signup');
 
         function switchView(viewName) {
             ui.views.login.style.display = viewName === 'login' ? 'block' : 'none';
             ui.views.signup.style.display = viewName === 'signup' ? 'block' : 'none';
+
+            // Update Toggle UI
+            if (viewName === 'login') {
+                tabLogin.classList.add('active');
+                tabSignup.classList.remove('active');
+                toggleBg.style.left = '4px'; // Move to left
+            } else {
+                tabSignup.classList.add('active');
+                tabLogin.classList.remove('active');
+                toggleBg.style.left = '50%'; // Move to right
+            }
+
             // Clear errors
             document.getElementById('error-msg-login').style.display = 'none';
             document.getElementById('error-msg-signup').style.display = 'none';
@@ -232,19 +400,46 @@
             }
         }
 
-        onAuthStateChanged(auth, (user) => {
+        onAuthStateChanged(auth, async (user) => {
             if (user) {
                 ui.auth.style.display = 'none';
                 ui.user.style.display = 'block';
-                // Remove dummy domain for display
+
+                // Display logic
                 const rawId = user.email ? user.email.replace(DUMMY_DOMAIN, "") : "Guest";
-                ui.userIdDisplay.textContent = rawId + " さん";
+                ui.displayName.textContent = rawId + " さん";
+                ui.avatar.textContent = rawId.charAt(0).toUpperCase();
+
+                // Fetch Stats for Title
+                try {
+                    const docRef = doc(db, "users", user.uid);
+                    const docSnap = await getDoc(docRef);
+                    let score = 0;
+                    if (docSnap.exists()) {
+                        score = docSnap.data().totalScore || 0;
+                    }
+                    ui.displayScore.textContent = score.toLocaleString();
+                    ui.displayTitle.textContent = getTitle(score);
+                } catch (e) {
+                    console.error("Stats load err:", e);
+                    ui.displayScore.textContent = "-";
+                }
+
             } else {
                 ui.auth.style.display = 'block';
                 ui.user.style.display = 'none';
                 switchView('login');
             }
         });
+
+        function getTitle(score) {
+            if (score >= 5000) return "🌟 学習レジェンド";
+            if (score >= 2000) return "👑 クイズ王";
+            if (score >= 1000) return "🎓 知識マスター";
+            if (score >= 500) return "🛡️ 上級チャレンジャー";
+            if (score >= 100) return "⚔️ 駆け出し冒険者";
+            return "🐣 見習い";
+        }
 
         // Login Logic
         document.getElementById('btn-do-login').addEventListener('click', async () => {

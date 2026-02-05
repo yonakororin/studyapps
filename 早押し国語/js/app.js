@@ -371,7 +371,7 @@ class Game {
         }, step);
     }
 
-    handleAnswer(selectedChoice, isCorrect) {
+    handleAnswer(selectedChoice, isCorrect, btnElement) {
         clearInterval(this.timerInterval);
 
         const timeBonus = Math.max(0, Math.floor(this.timeLeft * 10));
@@ -380,10 +380,9 @@ class Game {
         if (isCorrect) {
             this.score += points;
             this.ui.updateScore(this.score);
-            this.ui.showFeedback(true);
-            // Optional: Add streak logic here
+            this.ui.showFeedback(true, btnElement);
         } else {
-            this.ui.showFeedback(false);
+            this.ui.showFeedback(false, btnElement);
         }
 
         // Save Game Log
@@ -528,68 +527,49 @@ class UI {
 
     renderQuestion(q, number) {
         // Mode: Word -> Meaning (Default)
-        // Could randomize mode here
-        const isReverse = Math.random() > 0.8; // 20% chance of meaning -> word
-
+        // Revert reverse logic for V1 safety
         this.elements.qType.textContent = `Q${number}. ${q.type === 'yojijukugo' ? '四字熟語' : q.type === 'kotowaza' ? 'ことわざ' : '故事成語'}`;
 
-        if (!isReverse) {
-            this.elements.qText.textContent = q.term;
-            this.elements.qSub.textContent = q.reading; // Show reading? Or hide it for difficulty?
-        } else {
-            this.elements.qText.textContent = q.meaning;
-            this.elements.qSub.textContent = "この意味の言葉は？";
-        }
-
-        this.elements.optionsGrid.innerHTML = '';
-
-        // Prepare options
-        const correctAnswer = !isReverse ? q.meaning : q.term;
-        let options = q.choices.map(c => c); // Copy
-
-        // If reverse, we need to find terms for the wrong operational choices. 
-        // But our data structure stores wrong *meanings* in choices array.
-        // For reverse mode, we need wrong *terms*.
-        // Simplified: Only support Word -> Meaning for now, or use data properly.
-        // Let's stick to Word -> Meaning for V1 to ensure quality data match.
-
-        // Revert reverse logic for V1 safety
         this.elements.qText.textContent = q.term;
         this.elements.qSub.textContent = q.reading || "";
-        options = [...q.choices];
-        const correctVal = options[0]; // Assuming first is always correct in data.js structure, we need to shuffle options.
+
+        let options = [...q.choices];
+        const correctVal = options[0]; // First is correct in schema
 
         // Shuffle options
         options.sort(() => Math.random() - 0.5);
 
+        this.elements.optionsGrid.innerHTML = '';
         options.forEach(opt => {
             const btn = document.createElement('button');
             btn.className = 'option-btn';
             btn.textContent = opt;
-            btn.onclick = () => window.game.handleAnswer(opt, opt === correctVal);
+            // Add data attribute for correct answer identification
+            if (opt === correctVal) btn.dataset.correct = "true";
+
+            btn.onclick = (e) => window.game.handleAnswer(opt, opt === correctVal, e.target);
             this.elements.optionsGrid.appendChild(btn);
         });
     }
 
-    showFeedback(isCorrect) {
-        const color = isCorrect ? 'var(--success)' : 'var(--error)';
-        const flash = document.createElement('div');
-        flash.style.position = 'fixed';
-        flash.style.top = 0;
-        flash.style.left = 0;
-        flash.style.width = '100%';
-        flash.style.height = '100%';
-        flash.style.backgroundColor = color;
-        flash.style.opacity = 0.3;
-        flash.style.zIndex = 100;
-        document.body.appendChild(flash);
-        setTimeout(() => flash.remove(), 200);
-
-        if (isCorrect) {
-            // Find correct button and color it green
-            const btns = this.elements.optionsGrid.querySelectorAll('.option-btn');
-            // Logic to highlight correct pressed button is handled by reconstruction on next render
+    showFeedback(isCorrect, selectedBtn) {
+        // Highlight Selected
+        if (selectedBtn) {
+            selectedBtn.classList.add(isCorrect ? 'correct' : 'wrong');
         }
+
+        // If wrong, highlight correct one too
+        if (!isCorrect) {
+            const btns = this.elements.optionsGrid.querySelectorAll('.option-btn');
+            btns.forEach(btn => {
+                if (btn.dataset.correct === "true") {
+                    btn.classList.add('correct');
+                }
+            });
+        }
+
+        // No fullscreen flash needed. 
+        // We rely on CSS styles for .correct and .wrong defined in style.css
     }
 
     renderResult(score, correct, total) {
