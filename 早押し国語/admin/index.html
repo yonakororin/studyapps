@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>問題データ管理 - 早押し国語</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            padding: 20px;
+            max-width: 900px;
+            margin: 0 auto;
+            background: #f4f4f9;
+        }
+
+        h1 {
+            border-bottom: 2px solid #ccc;
+            padding-bottom: 10px;
+            color: #333;
+        }
+
+        .card {
+            border: 1px solid #ddd;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            background: #fff;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+
+        button {
+            cursor: pointer;
+            padding: 10px 20px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 16px;
+            transition: background 0.2s;
+        }
+
+        button:hover {
+            background: #0056b3;
+        }
+
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        button.danger {
+            background: #dc3545;
+        }
+
+        button.danger:hover {
+            background: #a71d2a;
+        }
+
+        textarea {
+            width: 100%;
+            height: 200px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-family: monospace;
+            margin-top: 10px;
+        }
+
+        #log {
+            white-space: pre-wrap;
+            background: #2d2d2d;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 5px;
+            max-height: 400px;
+            overflow-y: auto;
+            font-family: monospace;
+            margin-top: 20px;
+        }
+
+        .success {
+            color: #a6e22e;
+        }
+
+        .error {
+            color: #f92672;
+        }
+
+        .warning {
+            color: #fd971f;
+        }
+
+        .tabs {
+            display: flex;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            border: 1px solid transparent;
+            border-bottom: none;
+            border-radius: 4px 4px 0 0;
+        }
+
+        .tab.active {
+            background: #fff;
+            border-color: #ddd;
+            border-bottom-color: #fff;
+            font-weight: bold;
+        }
+
+        .panel {
+            display: none;
+        }
+
+        .panel.active {
+            display: block;
+        }
+
+        .format-hint {
+            font-size: 0.9rem;
+            color: #666;
+            background: #eee;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>問題データ管理コンソール</h1>
+
+    <div id="status-bar" style="margin-bottom: 20px; font-weight: bold;">接続確認中...</div>
+
+    <div class="tabs">
+        <div class="tab active" onclick="switchTab('import')">データインポート</div>
+        <div class="tab" onclick="switchTab('manage')">データ管理</div>
+    </div>
+
+    <!-- IMPORTS -->
+    <div id="panel-import" class="panel active">
+        <div class="card">
+            <h2>CSV / JSON 一括インポート</h2>
+            <p>Excel等で作成したデータを貼り付けて一括登録できます。</p>
+
+            <div class="format-hint">
+                <strong>CSVフォーマット (ヘッダーなし):</strong><br>
+                タイプ(yojijukugo/kotowaza/kojiseigo), 問題語句, 読み, 正解の意味, ダミー選択肢1, ダミー選択肢2, ダミー選択肢3<br>
+                例:
+                <code>yojijukugo,一石二鳥,いっせきにちょう,一つの行為で二つの利益を得ること,一度にたくさんの失敗をすること,石を投げて鳥を追い払うこと,二つのことを同時に行うのは難しいこと</code>
+            </div>
+
+            <textarea id="import-text" placeholder="ここにCSVまたはJSONを貼り付けてください..."></textarea>
+
+            <div style="margin-top: 10px; display: flex; gap: 10px;">
+                <button id="parse-csv-btn">CSVとして取り込み</button>
+                <button id="import-json-btn">JSONとして取り込み</button>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>js/data.js からインポート</h2>
+            <p>プロジェクト内の初期データを再ロードします（IDが重複する場合は上書き）。</p>
+            <button id="load-local-btn">js/data.js をロード</button>
+        </div>
+    </div>
+
+    <!-- MANAGE -->
+    <div id="panel-manage" class="panel">
+        <div class="card">
+            <h2>データ全消去</h2>
+            <p>Firestore上の「questions」コレクションを全て削除します。取り扱い注意。</p>
+            <button id="delete-all-btn" class="danger">全データを削除</button>
+        </div>
+
+        <div class="card">
+            <h2>現在のデータ数確認</h2>
+            <button id="check-count-btn">件数を確認</button>
+            <span id="count-display" style="margin-left: 10px; font-weight: bold;"></span>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>実行ログ</h2>
+        <div id="log">...</div>
+    </div>
+
+    <script type="module">
+        import { firebaseConfig } from '../js/config.js';
+        import { questionData } from '../js/data.js';
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getFirestore, setDoc, doc, collection, getDocs, writeBatch, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+
+        const logDiv = document.getElementById('log');
+
+        function log(msg, type = 'info') {
+            const line = document.createElement('div');
+            line.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+            if (type === 'error') { line.className = 'error'; }
+            else if (type === 'success') { line.className = 'success'; }
+            else if (type === 'warning') { line.className = 'warning'; }
+
+            logDiv.appendChild(line);
+            logDiv.scrollTop = logDiv.scrollHeight;
+            console.log(msg); // Also console
+        }
+
+        window.switchTab = (name) => {
+            document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.getElementById(`panel-${name}`).classList.add('active');
+            // rudimentary tab active style toggle
+            event.target.classList.add('active');
+        };
+
+        async function main() {
+            log("Firebase初期化中...");
+            const app = initializeApp(firebaseConfig);
+            const db = getFirestore(app);
+            const auth = getAuth(app);
+
+            try {
+                await signInAnonymously(auth);
+                document.getElementById('status-bar').textContent = "接続完了 (匿名ログイン)";
+                document.getElementById('status-bar').style.color = "green";
+                log("ログイン成功", 'success');
+            } catch (e) {
+                document.getElementById('status-bar').textContent = "接続失敗";
+                document.getElementById('status-bar').style.color = "red";
+                log("ログイン失敗: " + e.message, 'error');
+                return;
+            }
+
+            // --- local import ---
+            document.getElementById('load-local-btn').addEventListener('click', async () => {
+                await importQuestions(questionData);
+            });
+
+            // --- CSV import ---
+            document.getElementById('parse-csv-btn').addEventListener('click', async () => {
+                const text = document.getElementById('import-text').value.trim();
+                if (!text) return alert("テキストを入力してください");
+
+                const lines = text.split('\n');
+                const questions = [];
+                let startId = Date.now(); // Simple ID generation strategy
+
+                lines.forEach((line, idx) => {
+                    if (!line.trim()) return;
+                    // Simple CSV split (not robust for commas in quotes, but sufficient for simple data)
+                    const cols = line.split(',').map(s => s.trim());
+                    if (cols.length < 7) {
+                        log(`Skipping line ${idx + 1}: not enough columns`, 'warning');
+                        return;
+                    }
+
+                    const [type, term, reading, meaning, c1, c2, c3] = cols;
+
+                    questions.push({
+                        id: startId + idx,
+                        type: type || 'yojijukugo',
+                        term,
+                        reading,
+                        meaning,
+                        choices: [meaning, c1, c2, c3] // We set meaning as first choice, assumes app shuffles
+                    });
+                });
+
+                if (questions.length > 0) {
+                    if (confirm(`${questions.length}件のデータをインポートしますか？`)) {
+                        await importQuestions(questions);
+                    }
+                } else {
+                    log("有効なデータが見つかりませんでした", 'warning');
+                }
+            });
+
+            // --- DELETE ALL ---
+            document.getElementById('delete-all-btn').addEventListener('click', async () => {
+                if (!confirm("本当に全てのデータを削除しますか？この操作は取り消せません。")) return;
+
+                const btn = document.getElementById('delete-all-btn');
+                btn.disabled = true;
+                try {
+                    log("削除開始...");
+                    const snap = await getDocs(collection(db, "questions"));
+                    const batches = [];
+                    let batch = writeBatch(db);
+                    let count = 0;
+
+                    snap.forEach(doc => {
+                        batch.delete(doc.ref);
+                        count++;
+                        if (count % 400 === 0) {
+                            batches.push(batch.commit());
+                            batch = writeBatch(db);
+                        }
+                    });
+                    if (count % 400 !== 0) batches.push(batch.commit());
+
+                    await Promise.all(batches);
+                    log(`全 ${count} 件を削除しました`, 'success');
+                } catch (e) {
+                    log("削除エラー: " + e.message, 'error');
+                } finally {
+                    btn.disabled = false;
+                }
+            });
+
+            // --- CHECK COUNT ---
+            document.getElementById('check-count-btn').addEventListener('click', async () => {
+                const snap = await getDocs(collection(db, "questions"));
+                const count = snap.size;
+                document.getElementById('count-display').textContent = count + " 件";
+                log(`現在のデータ件数: ${count}`, 'info');
+            });
+
+            async function importQuestions(list) {
+                log(`インポート開始: ${list.length} 件...`);
+                // Use Batched Writes for speed
+                const batchSize = 400; // limit is 500
+                let currentBatch = writeBatch(db);
+                let count = 0;
+                let totalSuccess = 0;
+
+                const chunks = [];
+                for (let i = 0; i < list.length; i += batchSize) {
+                    chunks.push(list.slice(i, i + batchSize));
+                }
+
+                for (const chunk of chunks) {
+                    const batch = writeBatch(db);
+                    chunk.forEach(q => {
+                        const ref = doc(db, "questions", String(q.id));
+                        batch.set(ref, q);
+                    });
+                    try {
+                        await batch.commit();
+                        totalSuccess += chunk.length;
+                        log(`Batch saved: ${totalSuccess} / ${list.length}`);
+                    } catch (e) {
+                        log(`Batch failed: ${e.message}`, 'error');
+                    }
+                }
+                log("インポート完了", 'success');
+            }
+        }
+
+        main();
+    </script>
+</body>
+
+</html>
