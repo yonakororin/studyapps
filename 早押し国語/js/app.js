@@ -381,8 +381,10 @@ class Game {
             this.score += points;
             this.ui.updateScore(this.score);
             this.ui.showFeedback(true, btnElement);
+            if (this.soundManager) this.soundManager.playCorrect();
         } else {
             this.ui.showFeedback(false, btnElement);
+            if (this.soundManager) this.soundManager.playWrong();
         }
 
         // Save Game Log
@@ -584,22 +586,137 @@ class UI {
     }
 }
 
+// --- SOUND MANAGER ---
+class SoundManager {
+    constructor() {
+        this.ctx = null;
+        this.enabled = true;
+    }
+
+    init() {
+        if (!this.ctx) {
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            this.ctx = new AudioContext();
+        }
+        if (this.ctx.state === 'suspended') {
+            this.ctx.resume();
+        }
+    }
+
+    playCorrect() {
+        if (!this.enabled) return;
+        this.init();
+
+        const t = this.ctx.currentTime;
+
+        // "Ping-Pong" (High Chime)
+        // 1st Note: C6 (1047Hz)
+        const osc1 = this.ctx.createOscillator();
+        const gain1 = this.ctx.createGain();
+        osc1.type = 'sine';
+        osc1.frequency.setValueAtTime(1047, t);
+
+        gain1.gain.setValueAtTime(0, t);
+        gain1.gain.linearRampToValueAtTime(0.3, t + 0.05);
+        gain1.gain.exponentialRampToValueAtTime(0.01, t + 0.4);
+
+        osc1.connect(gain1);
+        gain1.connect(this.ctx.destination);
+        osc1.start(t);
+        osc1.stop(t + 0.4);
+
+        // 2nd Note: E6 (1318Hz) - slightly delayed creates harmony or "Ping-Pong" feel
+        const osc2 = this.ctx.createOscillator();
+        const gain2 = this.ctx.createGain();
+        osc2.type = 'sine';
+        osc2.frequency.setValueAtTime(1318, t + 0.15); // E6
+        // osc2.frequency.setValueAtTime(2093, t + 0.15); // C7 (Higher octave ping)
+
+        gain2.gain.setValueAtTime(0, t + 0.15);
+        gain2.gain.linearRampToValueAtTime(0.3, t + 0.18);
+        gain2.gain.exponentialRampToValueAtTime(0.01, t + 0.6);
+
+        osc2.connect(gain2);
+        gain2.connect(this.ctx.destination);
+        osc2.start(t + 0.15);
+        osc2.stop(t + 0.6);
+    }
+
+    playWrong() {
+        if (!this.enabled) return;
+        this.init();
+
+        const t = this.ctx.currentTime;
+
+        // "Bu-Bu" (Low Sawtooth)
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(150, t); // Low buzz
+        // Pitch bend down slightly
+        osc.frequency.linearRampToValueAtTime(100, t + 0.3);
+
+        gain.gain.setValueAtTime(0.2, t);
+        gain.gain.exponentialRampToValueAtTime(0.01, t + 0.3);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(t);
+        osc.stop(t + 0.3);
+    }
+
+    playDecide() {
+        if (!this.enabled) return;
+        this.init();
+
+        const t = this.ctx.currentTime;
+
+        // "Ping" (High Sine for UI)
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(880, t); // A5
+        gain.gain.setValueAtTime(0.1, t);
+        gain.gain.exponentialRampToValueAtTime(0.01, t + 0.1);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(t);
+        osc.stop(t + 0.1);
+    }
+}
+
 // --- INITIALIZATION ---
 const storage = new StorageService();
 const decorationManager = new DecorationManager();
+const sound = new SoundManager();
 const ui = new UI();
+
+// Game class is already defined above
+// Instantiate Game
 const game = new Game(ui, storage, decorationManager);
+game.soundManager = sound; // Attach sound manager manually
+
+// Expose for inline callbacks
+window.game = game;
+
+
 
 // Initial Load of Decorations and UI Info
 storage.init().then(async () => {
     // Wait for auth
     setTimeout(async () => {
         // User Info Update
+        let displayId = "Guest";
         if (storage.auth && storage.auth.currentUser) {
             const email = storage.auth.currentUser.email || "";
-            const displayId = email.split('@')[0] || "Guest";
-            document.getElementById('header-user-id').textContent = displayId;
-            document.getElementById('user-info-bar').style.display = 'flex';
+            displayId = email.split('@')[0] || "Guest";
+            const idEl = document.getElementById('header-user-id');
+            if (idEl) idEl.textContent = displayId;
+            const bar = document.getElementById('user-info-bar');
+            if (bar) bar.style.display = 'flex';
         }
 
         const stats = await storage.getUserStats();
@@ -614,20 +731,22 @@ storage.init().then(async () => {
             }
         }
         if (!currentRankName) currentRankName = "🐣 見習い";
-        document.getElementById('header-user-rank').textContent = currentRankName;
+        const rankEl = document.getElementById('header-user-rank');
+        if (rankEl) rankEl.textContent = currentRankName;
 
     }, 1000);
 });
 
-window.game = game; // Expose for callbacks
-
 // Event Listeners
 document.getElementById('start-game-btn').addEventListener('click', async () => {
+    // Play/Unlock Audio Context on interaction
+    sound.init(); // Unlock
+    sound.playDecide(); // Play SE
+
     const btn = document.getElementById('start-game-btn');
     btn.textContent = "読み込み中...";
     btn.disabled = true;
 
-    // const diff = document.getElementById('difficulty-select').value;
     await game.start('normal');
 
     btn.textContent = "スタート";
@@ -635,15 +754,18 @@ document.getElementById('start-game-btn').addEventListener('click', async () => 
 });
 
 document.getElementById('restart-btn').addEventListener('click', () => {
+    sound.playDecide();
     game.start('normal');
 });
 
 document.getElementById('home-btn').addEventListener('click', () => {
+    sound.playDecide();
     ui.showScreen('home');
 });
 
 
 document.getElementById('nav-history').addEventListener('click', async () => {
+    sound.playDecide();
     ui.showScreen('history');
     const container = document.getElementById('screen-history');
     // Ensure status container exists
